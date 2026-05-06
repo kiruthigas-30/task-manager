@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Task manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14;
+    --card: #13161d;
+    --card2: #1a1d26;
+    --border: #252834;
+    --text: #eef0f6;
+    --muted: #6b708a;
+    --accent: #7c6dfa;
+    --green: #1fd4a0;
+    --red: #ff5e7d;
+    --yellow: #f0b429;
+    --orange: #ff8c42;
+    --r: 10px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+
+  /* ── Layout ── */
+  .wrap { max-width: 680px; margin: 0 auto; }
+
+  /* ── Header ── */
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }
+  .logo { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em; }
+  .logo span { color: var(--accent); }
+
+  /* ── Add Form ── */
+  .form-row {
+    display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap;
+  }
+  input[type="text"], input[type="date"], select {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--r); padding: 0.65rem 0.9rem;
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+    outline: none; transition: border-color .15s;
+  }
+  input[type="text"]:focus, input[type="date"]:focus, select:focus {
+    border-color: var(--accent);
+  }
+  input[type="text"]::placeholder { color: var(--muted); }
+  #taskTitle { flex: 1; min-width: 180px; }
+  select { cursor: pointer; appearance: none; padding-right: 1.6rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%236b708a' d='M5 7L0 2h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 0.6rem center; }
+
+  .btn {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: var(--r); padding: 0.65rem 1.2rem;
+    font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap; transition: opacity .15s, transform .15s;
+  }
+  .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn.ghost {
+    background: var(--card2); color: var(--muted); border: 1px solid var(--border);
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn.ghost:hover { color: var(--text); }
+
+  /* ── Filters ── */
+  .filters { display: flex; gap: 0.4rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .chip {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 99px; padding: 0.3rem 0.9rem;
+    font-size: 0.78rem; font-weight: 500; cursor: pointer;
+    color: var(--muted); transition: all .15s;
+  }
+  .chip:hover { color: var(--text); border-color: #3a3d50; }
+  .chip.on { background: rgba(124,109,250,.15); border-color: rgba(124,109,250,.4); color: var(--accent); }
+
+  /* ── Stats bar ── */
+  .stats {
+    display: flex; gap: 1.5rem; padding: 0.9rem 1.2rem;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--r); margin-bottom: 1.25rem;
+    font-size: 0.8rem;
+  }
+  .stat-item { display: flex; flex-direction: column; gap: 0.1rem; }
+  .stat-num { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800; }
+  .stat-label { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: .05em; }
+
+  /* ── Task List ── */
+  #list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+  .task {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--r); padding: 0.9rem 1.1rem;
+    display: flex; align-items: center; gap: 0.75rem;
+    animation: fadeUp .2s ease both;
+    transition: border-color .15s, opacity .2s;
+    position: relative; overflow: hidden;
+  }
+  .task::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  }
+  .task[data-status="todo"]::before        { background: var(--border); }
+  .task[data-status="in-progress"]::before { background: var(--accent); }
+  .task[data-status="done"]::before        { background: var(--green); }
+
+  .task:hover { border-color: #353848; }
+  .task.removing { opacity: 0; transform: translateX(20px); }
+
+  /* Checkbox */
+  .check {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--border); background: none;
+    cursor: pointer; flex-shrink: 0; display: flex;
+    align-items: center; justify-content: center;
+    transition: all .15s; font-size: 0.7rem;
+  }
+  .task[data-status="done"] .check { background: var(--green); border-color: var(--green); color: #fff; }
+  .task[data-status="in-progress"] .check { border-color: var(--accent); }
+
+  .task-body { flex: 1; min-width: 0; }
+  .task-title {
+    font-size: 0.92rem; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: color .15s;
+  }
+  .task[data-status="done"] .task-title { text-decoration: line-through; color: var(--muted); }
+
+  .task-meta { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.3rem; align-items: center; }
+  .badge {
+    font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+    padding: 0.15rem 0.5rem; border-radius: 99px;
+  }
+  .p-low      { background: rgba(31,212,160,.1); color: var(--green); }
+  .p-medium   { background: rgba(240,180,41,.1);  color: var(--yellow); }
+  .p-high     { background: rgba(255,140,66,.1);  color: var(--orange); }
+  .p-urgent   { background: rgba(255,94,125,.1);  color: var(--red); }
+
+  .due { font-size: 0.72rem; color: var(--muted); }
+  .due.late { color: var(--red); }
+
+  /* Status cycle button */
+  .status-btn {
+    font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+    padding: 0.25rem 0.65rem; border-radius: 99px; border: none; cursor: pointer;
+    white-space: nowrap; transition: opacity .15s; font-family: 'DM Sans', sans-serif;
+  }
+  .s-todo        { background: var(--card2); color: var(--muted); border: 1px solid var(--border); }
+  .s-in-progress { background: rgba(124,109,250,.15); color: var(--accent); }
+  .s-done        { background: rgba(31,212,160,.12); color: var(--green); }
+  .status-btn:hover { opacity: .75; }
+
+  /* Delete */
+  .del { background: none; border: none; color: var(--muted); font-size: 0.9rem;
+    cursor: pointer; padding: 0.2rem 0.4rem; border-radius: 6px; transition: all .15s; }
+  .del:hover { background: rgba(255,94,125,.1); color: var(--red); }
+
+  /* Empty */
+  .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); font-size: 0.875rem; }
+  .empty-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+
+  /* Modal */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.65);
+    backdrop-filter: blur(4px); display: flex;
+    align-items: center; justify-content: center; z-index: 50;
+    padding: 1rem;
+  }
+  .modal {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; width: 100%; max-width: 440px;
+    padding: 1.75rem; display: flex; flex-direction: column; gap: 1rem;
+    animation: fadeUp .2s ease;
+  }
+  .modal h2 { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .field input, .field select, .field textarea {
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: var(--r); padding: 0.6rem 0.85rem;
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.875rem; outline: none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+  .field textarea { resize: vertical; min-height: 64px; }
+  .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 500px) {
+    .form-row { flex-direction: column; }
+    .modal-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">Task<span>manager</span></div>
+    <button class="btn" onclick="openModal()">+ New Task</button>
+  </header>
+
+  <!-- Quick-add form -->
+  <div class="form-row">
+    <input type="text" id="taskTitle" placeholder="Quick add a task…" onkeydown="if(event.key==='Enter') quickAdd()" />
+    <select id="taskPriority">
+      <option value="low">Low</option>
+      <option value="medium" selected>Medium</option>
+      <option value="high">High</option>
+      <option value="urgent">Urgent</option>
+    </select>
+    <button class="btn" onclick="quickAdd()">Add</button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <div class="chip on" data-f="all"      onclick="setFilter('all')">All</div>
+    <div class="chip"    data-f="todo"     onclick="setFilter('todo')">To Do</div>
+    <div class="chip"    data-f="in-progress" onclick="setFilter('in-progress')">In Progress</div>
+    <div class="chip"    data-f="done"     onclick="setFilter('done')">Done</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-item"><span class="stat-num" id="s-total">0</span><span class="stat-label">Total</span></div>
+    <div class="stat-item"><span class="stat-num" id="s-todo">0</span><span class="stat-label">To Do</span></div>
+    <div class="stat-item"><span class="stat-num" id="s-ip" style="color:var(--accent)">0</span><span class="stat-label">In Progress</span></div>
+    <div class="stat-item"><span class="stat-num" id="s-done" style="color:var(--green)">0</span><span class="stat-label">Done</span></div>
+  </div>
+
+  <!-- Task list -->
+  <div id="list"></div>
+</div>
+
+<!-- Edit Modal -->
+<div class="overlay" id="overlay" style="display:none" onclick="if(event.target===this) closeModal()">
+  <div class="modal">
+    <h2 id="modalTitle">New Task</h2>
+    <div class="field">
+      <label>Title *</label>
+      <input type="text" id="mTitle" placeholder="Task title" />
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="mDesc" placeholder="Optional details…"></textarea>
+    </div>
+    <div class="modal-row">
+      <div class="field">
+        <label>Priority</label>
+        <select id="mPriority">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Due Date</label>
+        <input type="date" id="mDue" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="saveModal()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────
+  let tasks = JSON.parse(localStorage.getItem('tf_tasks') || '[]');
+  let filter = 'all';
+  let editId = null;
+
+  const STATUS_NEXT = { 'todo': 'in-progress', 'in-progress': 'done', 'done': 'todo' };
+  const STATUS_LABEL = { 'todo': 'To Do', 'in-progress': 'In Progress', 'done': 'Done' };
+
+  // ── Persistence ────────────────────────
+  function save() { localStorage.setItem('tf_tasks', JSON.stringify(tasks)); }
+
+  // ── Render ─────────────────────────────
+  function render() {
+    const list = document.getElementById('list');
+    const shown = tasks.filter(t => filter === 'all' || t.status === filter);
+
+    // Stats
+    document.getElementById('s-total').textContent = tasks.length;
+    document.getElementById('s-todo').textContent  = tasks.filter(t => t.status === 'todo').length;
+    document.getElementById('s-ip').textContent    = tasks.filter(t => t.status === 'in-progress').length;
+    document.getElementById('s-done').textContent  = tasks.filter(t => t.status === 'done').length;
+
+    if (shown.length === 0) {
+      list.innerHTML = `<div class="empty"><div class="empty-icon">✦</div>
+        ${tasks.length === 0 ? 'No tasks yet — add one above!' : 'No tasks match this filter.'}</div>`;
+      return;
+    }
+
+    list.innerHTML = shown.map(t => {
+      const overdue = t.due && new Date(t.due) < new Date() && t.status !== 'done';
+      const dueStr  = t.due ? `<span class="due ${overdue ? 'late' : ''}">📅 ${t.due}</span>` : '';
+      const check   = t.status === 'done' ? '✓' : '';
+      return `
+        <div class="task" data-status="${t.status}" data-id="${t.id}">
+          <div class="check" onclick="cycleStatus('${t.id}')">${check}</div>
+          <div class="task-body">
+            <div class="task-title">${t.title}</div>
+            <div class="task-meta">
+              <span class="badge p-${t.priority}">${t.priority}</span>
+              ${dueStr}
+            </div>
+          </div>
+          <button class="status-btn s-${t.status}" onclick="cycleStatus('${t.id}')">
+            ${STATUS_LABEL[t.status]}
+          </button>
+          <button class="btn ghost" style="padding:.4rem .7rem;font-size:.8rem" onclick="openModal('${t.id}')">✎</button>
+          <button class="del" onclick="deleteTask('${t.id}')">✕</button>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Actions ────────────────────────────
+  function quickAdd() {
+    const inp = document.getElementById('taskTitle');
+    const title = inp.value.trim();
+    if (!title) return inp.focus();
+    tasks.unshift({
+      id: Date.now().toString(),
+      title,
+      desc: '',
+      priority: document.getElementById('taskPriority').value,
+      status: 'todo',
+      due: '',
+      created: new Date().toISOString()
+    });
+    inp.value = '';
+    save(); render();
+  }
+
+  function cycleStatus(id) {
+    const t = tasks.find(t => t.id === id);
+    if (t) { t.status = STATUS_NEXT[t.status]; save(); render(); }
+  }
+
+  function deleteTask(id) {
+    const el = document.querySelector(`[data-id="${id}"]`);
+    if (el) el.classList.add('removing');
+    setTimeout(() => { tasks = tasks.filter(t => t.id !== id); save(); render(); }, 200);
+  }
+
+  function setFilter(f) {
+    filter = f;
+    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === f));
+    render();
+  }
+
+  // ── Modal ──────────────────────────────
+  function openModal(id = null) {
+    editId = id;
+    const t = id ? tasks.find(t => t.id === id) : null;
+    document.getElementById('modalTitle').textContent = t ? 'Edit Task' : 'New Task';
+    document.getElementById('mTitle').value    = t?.title    || '';
+    document.getElementById('mDesc').value     = t?.desc     || '';
+    document.getElementById('mPriority').value = t?.priority || 'medium';
+    document.getElementById('mDue').value      = t?.due      || '';
+    document.getElementById('overlay').style.display = 'flex';
+    setTimeout(() => document.getElementById('mTitle').focus(), 50);
+  }
+
+  function closeModal() { document.getElementById('overlay').style.display = 'none'; editId = null; }
+
+  function saveModal() {
+    const title = document.getElementById('mTitle').value.trim();
+    if (!title) { document.getElementById('mTitle').focus(); return; }
+    if (editId) {
+      const t = tasks.find(t => t.id === editId);
+      if (t) {
+        t.title    = title;
+        t.desc     = document.getElementById('mDesc').value;
+        t.priority = document.getElementById('mPriority').value;
+        t.due      = document.getElementById('mDue').value;
+      }
+    } else {
+      tasks.unshift({
+        id: Date.now().toString(), title,
+        desc: document.getElementById('mDesc').value,
+        priority: document.getElementById('mPriority').value,
+        status: 'todo',
+        due: document.getElementById('mDue').value,
+        created: new Date().toISOString()
+      });
+    }
+    save(); render(); closeModal();
+  }
+
+  // Close modal with Escape
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // ── Init ───────────────────────────────
+  render();
+</script>
+</body>
+</html>
